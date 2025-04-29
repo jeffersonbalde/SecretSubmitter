@@ -1,65 +1,131 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 function App() {
   const [role, setRole] = useState("guest");
+  const [secret, setSecret] = useState("");
+  const [storedSecrets, setStoredSecrets] = useState([]);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     const cookieRoleEncoded = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('role='))
-      ?.split('=')[1];
+      .split("; ")
+      .find((row) => row.startsWith("role="))
+      ?.split("=")[1];
+
+    let decodedRole = "guest";
 
     if (!cookieRoleEncoded) {
-      const encodedUser = btoa('guest');
+      const encodedUser = btoa("guest");
       document.cookie = `role=${encodedUser}; path=/;`;
-      setRole('guest');
     } else {
       try {
-        const decodedRole = atob(cookieRoleEncoded);
-
-        if (decodedRole === "guest" || decodedRole === "admin") {
-          setRole(decodedRole);
-        } else {
-          setRole(cookieRoleEncoded);
+        decodedRole = atob(cookieRoleEncoded);
+        if (decodedRole !== "guest" && decodedRole !== "admin") {
+          decodedRole = "guest";
         }
       } catch (error) {
         console.error("Invalid cookie, resetting:", error);
-        const encodedUser = btoa('guest');
+        decodedRole = "guest";
+        const encodedUser = btoa("guest");
         document.cookie = `role=${encodedUser}; path=/;`;
-        setRole('guest');
       }
+    }
+
+    setRole(decodedRole);
+
+    if (decodedRole === "guest") {
+      localStorage.removeItem("user-secrets");
     }
   }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    alert('Thank you for submitting your secret!');
+
+    if (secret.trim() === "") {
+      alert("Please enter a secret.");
+      inputRef.current?.focus(); 
+      return;
+    }
+
+    const existingSecrets = JSON.parse(
+      localStorage.getItem("user-secrets") || "[]"
+    );
+    const updatedSecrets = [...existingSecrets, secret];
+    localStorage.setItem("user-secrets", JSON.stringify(updatedSecrets));
+
+    alert("Thank you for submitting your secret!");
+    setSecret(""); 
+    inputRef.current?.focus();
   };
+
+  useEffect(() => {
+    if (role === "admin") {
+      const userSecrets = JSON.parse(
+        localStorage.getItem("user-secrets") || "[]"
+      );
+      setStoredSecrets(userSecrets);
+    }
+  }, [role]);
+
+  useEffect(() => {
+    inputRef.current?.focus(); 
+  }, []);
 
   return (
     <div style={{ padding: "1.5rem", textAlign: "center" }}>
-      <h1 style={{ fontSize: "1.875rem", fontWeight: "bold", marginBottom: "1.5rem" }}>
+      <h1
+        style={{
+          fontSize: "1.875rem",
+          fontWeight: "bold",
+          marginBottom: "1.5rem",
+        }}
+      >
         Secret Submitter
       </h1>
 
       {role === "admin" ? (
         <div>
-          <h2 style={{ fontSize: "1.5rem", fontWeight: "600", color: "#22c55e" }}>
+          <h2
+            style={{ fontSize: "1.5rem", fontWeight: "600", color: "#22c55e" }}
+          >
             Admin Panel
           </h2>
+          {storedSecrets.length > 0 && (
+            <div style={{ marginTop: "1rem", color: "#f59e0b" }}>
+              <p>🧾 Submitted Secrets:</p>
+              <ul style={{ listStyle: "none", padding: 0 }}>
+                {storedSecrets.map((s, i) => (
+                  <li key={i}>
+                    <strong>•</strong> {s}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <p style={{ marginTop: "1rem" }}>
-            Flag: ZDSh4g&#123;c00ki3s_are_tricky&#125;
+            WkRTaDRne2MwMGtpM3NfYXJlX3RyaWNreX0=
           </p>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem", alignItems: "center" }}>
+        <form
+          onSubmit={handleSubmit}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "1rem",
+            alignItems: "center",
+          }}
+        >
           <input
+            ref={inputRef} 
             type="text"
+            value={secret}
+            onChange={(e) => setSecret(e.target.value)}
             placeholder="Enter your secret..."
             style={{
               border: "1px solid #ccc",
               padding: "0.5rem",
-              width: "50%"
+              width: "50%",
             }}
           />
           <button
@@ -70,7 +136,7 @@ function App() {
               padding: "0.5rem 1rem",
               borderRadius: "0.375rem",
               border: "none",
-              cursor: "pointer"
+              cursor: "pointer",
             }}
           >
             Submit
@@ -79,6 +145,6 @@ function App() {
       )}
     </div>
   );
-} 
+}
 
 export default App;
